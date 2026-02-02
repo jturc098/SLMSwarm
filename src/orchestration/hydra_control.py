@@ -170,11 +170,32 @@ class HydraControl:
             self.websocket_connections.append(websocket)
             
             try:
+                # Send initial connection message
+                await websocket.send_json({
+                    "type": "connected",
+                    "message": "Connected to Hydra-Consensus"
+                })
+                
+                # Keep connection alive with periodic heartbeats
                 while True:
-                    # Keep connection alive and send heartbeat
-                    await websocket.receive_text()
+                    try:
+                        # Non-blocking receive with timeout
+                        await asyncio.wait_for(
+                            websocket.receive_text(),
+                            timeout=30.0
+                        )
+                    except asyncio.TimeoutError:
+                        # Send heartbeat
+                        await websocket.send_json({
+                            "type": "heartbeat",
+                            "timestamp": datetime.utcnow().isoformat()
+                        })
             except WebSocketDisconnect:
                 self.websocket_connections.remove(websocket)
+            except Exception as e:
+                logger.error(f"WebSocket error: {e}")
+                if websocket in self.websocket_connections:
+                    self.websocket_connections.remove(websocket)
     
     async def _execute_task(self, task: Task):
         """
