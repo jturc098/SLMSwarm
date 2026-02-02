@@ -29,11 +29,11 @@ fi
 
 # Model definitions
 declare -A MODELS=(
-    ["architect"]="TheBloke/deepseek-r1-distill-qwen-14B-GGUF:DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf"
+    ["architect"]="unsloth/deepseek-r1-distill-qwen-14B-GGUF:DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf"
     ["worker_backend"]="Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:qwen2.5-coder-7b-instruct-q4_k_m.gguf"
     ["worker_frontend"]="Qwen/Qwen2.5-Coder-3B-Instruct-GGUF:qwen2.5-coder-3b-instruct-q4_k_m.gguf"
-    ["qa_sentinel"]="TheBloke/deepseek-r1-distill-qwen-1.5B-GGUF:DeepSeek-R1-Distill-Qwen-1.5B-Q6_K.gguf"
-    ["consensus_judge"]="microsoft/Phi-4-GGUF:phi-4-Q4_K_M.gguf"
+    ["qa_sentinel"]="unsloth/deepseek-r1-distill-qwen-1.5B-GGUF:DeepSeek-R1-Distill-Qwen-1.5B-Q6_K.gguf"
+    ["consensus_judge"]="microsoft/Phi-4-GGUF:phi-4-Q4_0.gguf"
 )
 
 download_model() {

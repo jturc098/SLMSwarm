@@ -29,7 +29,7 @@ services:
       --batch-size 512
       --port 8080
       --alias architect
-      --flash-attn
+      --flash-attn on
       --cache-type-k q8_0
       --cache-type-v q8_0
     restart: unless-stopped
@@ -63,7 +63,7 @@ services:
       --batch-size 512
       --port 8080
       --alias worker_backend
-      --flash-attn
+      --flash-attn on
       --cache-type-k q8_0
       --cache-type-v q8_0
     restart: unless-stopped
@@ -92,7 +92,7 @@ services:
       --batch-size 256
       --port 8080
       --alias worker_frontend
-      --flash-attn
+      --flash-attn on
       --cache-type-k q8_0
       --cache-type-v q8_0
     restart: unless-stopped
@@ -121,7 +121,7 @@ services:
       --batch-size 256
       --port 8080
       --alias qa_sentinel
-      --flash-attn
+      --flash-attn on
     restart: unless-stopped
 
   consensus-judge:
@@ -141,14 +141,14 @@ services:
               count: 1
               capabilities: [gpu]
     command: >
-      -m /models/Phi-4-Mini-Q4_K_M.gguf
+      -m /models/phi-4-Q4_0.gguf
       --ctx-size 8192
       --n-gpu-layers 99
       --parallel 1
       --batch-size 256
       --port 8080
       --alias judge
-      --flash-attn
+      --flash-attn on
     restart: unless-stopped
 
   # ============================================================================
