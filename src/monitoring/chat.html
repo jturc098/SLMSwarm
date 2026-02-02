@@ -313,15 +313,30 @@
                     const statusResponse = await fetch(`http://localhost:8090/tasks/${taskId}`);
                     const status = await statusResponse.json();
                     
-                    if (status.status === 'completed' || status.status === 'failed') {
+                    if (status.status === 'completed') {
                         removeLoadingMessage();
                         
-                        // Get full task details (would need to store results)
-                        // For now, show a success message
-                        addMessage('assistant', 
-                            `Task completed! Check logs for full output.\n\nStatus: ${status.status}`,
-                            {approach: 'consensus', consensus_score: '0.85', iterations: '3'}
-                        );
+                        // Get the actual result
+                        if (status.result && status.result.code) {
+                            const code = status.result.code;
+                            const metadata = {
+                                approach: status.result.approach,
+                                consensus_score: status.result.consensus_score.toFixed(2),
+                                iterations: status.result.iterations
+                            };
+                            
+                            addMessage('assistant', 
+                                `Here's the winning solution:\n\n\`\`\`python\n${code}\n\`\`\``,
+                                metadata
+                            );
+                        } else {
+                            addMessage('assistant', 'Task completed! Result not available yet.');
+                        }
+                        break;
+                    } else if (status.status === 'failed') {
+                        removeLoadingMessage();
+                        const errorMsg = status.result?.error || 'Unknown error';
+                        addMessage('assistant', `Task failed: ${errorMsg}`);
                         break;
                     }
                     
