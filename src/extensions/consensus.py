@@ -102,7 +102,7 @@ class ConsensusEngine:
             id=str(uuid.uuid4()),
             task_id=task.id,
             agent_role=agent_client.role,
-            code=response.content,
+            code=response["content"],
             approach=approach,
             generated_at=datetime.utcnow(),
             metadata={"model": agent_client.model_name}

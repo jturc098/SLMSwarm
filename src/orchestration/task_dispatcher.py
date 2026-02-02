@@ -171,30 +171,21 @@ class TaskDispatcher:
         task: Task,
         context: list
     ) -> list[CodeCandidate]:
-        """
-        Generate multiple candidate solutions.
+        """Generate multiple candidate solutions using REAL agents."""
+        from src.agents.agent_client import create_agent_client
         
-        Note: This is a simplified version. Full implementation would:
-        - Actually call agent models via HTTP
-        - Use different approaches
-        - Apply memory context
-        """
-        logger.info("Generating candidates (simplified)")
+        # Determine which agent to use
+        agent_role = self.router.route_task(task)
+        agent_client = create_agent_client(agent_role)
         
-        # This would normally use the consensus engine
-        # For now, return mock candidates
-        candidates = []
+        logger.info(f"Generating candidates with {agent_role.value}")
         
-        for i, approach in enumerate(["conservative", "aggressive", "minimal"]):
-            candidate = CodeCandidate(
-                id=f"candidate_{i}",
-                task_id=task.id,
-                agent_role=AgentRole.WORKER_BACKEND,
-                code=f"# {approach} approach\n# TODO: Implement {task.title}",
-                approach=approach,
-                metadata={"mock": True}
-            )
-            candidates.append(candidate)
+        # Use consensus engine to generate candidates
+        candidates = await self.consensus.generate_candidates(
+            task=task,
+            agent_client=agent_client,
+            approaches=["conservative", "aggressive", "minimal"]
+        )
         
         return candidates
     
