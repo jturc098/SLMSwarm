@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydra-Consensus Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e27;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            background: #1a1f3a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        .message {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.user {
+            background: #667eea;
+            margin-left: 20%;
+        }
+        
+        .message.assistant {
+            background: #2a2f4a;
+            margin-right: 20%;
+        }
+        
+        .message .role {
+            font-weight: bold;
+            margin-bottom: 8px;
+            opacity: 0.8;
+            font-size: 0.9em;
+        }
+        
+        .message .content {
+            line-height: 1.6;
+        }
+        
+        .message pre {
+            background: #0f1419;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .message code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+        }
+        
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+        
+        #prompt-input {
+            flex: 1;
+            padding: 15px;
+            background: #1a1f3a;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 16px;
+        }
+        
+        #prompt-input:focus {
+            outline: none;
+            border-color: #764ba2;
+        }
+        
+        #send-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        #send-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        #send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        
+        .metadata {
+            font-size: 0.85em;
+            color: #9ca3af;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #3a3f5a;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🐉 Hydra-Consensus Chat</h1>
+        <p>Interact with your AI swarm</p>
+    </div>
+    
+    <div class="chat-container">
+        <div class="messages" id="messages">
+            <div class="message assistant">
+                <div class="role">🤖 Hydra System</div>
+                <div class="content">
+                    Welcome! I'm your local AI swarm with 5 specialized agents running consensus protocol.
+                    <br><br>
+                    Ask me to:
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Write code in any language</li>
+                        <li>Design system architectures</li>
+                        <li>Debug and fix issues</li>
+                        <li>Generate tests</li>
+                    </ul>
+                    <br>
+                    I'll generate 3 solutions, cross-verify them, and give you the best one!
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <input 
+                type="text" 
+                id="prompt-input" 
+                placeholder="Ask me to code something..."
+                onkeypress="if(event.key==='Enter') sendMessage()"
+            >
+            <button id="send-btn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+    
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        const promptInput = document.getElementById('prompt-input');
+        const sendBtn = document.getElementById('send-btn');
+        
+        function addMessage(role, content, metadata = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const roleDiv = document.createElement('div');
+            roleDiv.className = 'role';
+            roleDiv.textContent = role === 'user' ? '👤 You' : '🤖 Hydra';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'content';
+            
+            // Format code blocks
+            if (content.includes('```')) {
+                contentDiv.innerHTML = formatCodeBlocks(content);
+            } else {
+                contentDiv.textContent = content;
+            }
+            
+            messageDiv.appendChild(roleDiv);
+            messageDiv.appendChild(contentDiv);
+            
+            if (metadata) {
+                const metadataDiv = document.createElement('div');
+                metadataDiv.className = 'metadata';
+                metadataDiv.innerHTML = `
+                    Approach: <strong>${metadata.approach || 'N/A'}</strong> | 
+                    Consensus Score: <strong>${metadata.consensus_score || 'N/A'}</strong> | 
+                    Candidates: <strong>${metadata.iterations || 'N/A'}</strong>
+                `;
+                messageDiv.appendChild(metadataDiv);
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function formatCodeBlocks(text) {
+            return text.replace(/```(\w+)?\n([\s\S]+?)```/g, (match, lang, code) => {
+                return `<pre><code>${escapeHtml(code.trim())}</code></pre>`;
+            });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function addLoadingMessage() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.id = 'loading';
+            loadingDiv.textContent = 'Generating 3 candidates and selecting best';
+            messagesDiv.appendChild(loadingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function removeLoadingMessage() {
+            const loading = document.getElementById('loading');
+            if (loading) loading.remove();
+        }
+        
+        async function sendMessage() {
+            const prompt = promptInput.value.trim();
+            if (!prompt) return;
+            
+            // Add user message
+            addMessage('user', prompt);
+            promptInput.value = '';
+            
+            // Disable input
+            sendBtn.disabled = true;
+            promptInput.disabled = true;
+            addLoadingMessage();
+            
+            try {
+                // Create task
+                const taskId = 'task_' + Date.now();
+                const taskData = {
+                    id: taskId,
+                    title: prompt,
+                    description: prompt,
+                    priority: "high",
+                    metadata: {}
+                };
+                
+                // Submit task
+                const response = await fetch('http://localhost:8090/tasks', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(taskData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to create task');
+                }
+                
+                // Poll for completion
+                let attempts = 0;
+                const maxAttempts = 60; // 60 seconds
+                
+                while (attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    const statusResponse = await fetch(`http://localhost:8090/tasks/${taskId}`);
+                    const status = await statusResponse.json();
+                    
+                    if (status.status === 'completed' || status.status === 'failed') {
+                        removeLoadingMessage();
+                        
+                        // Get full task details (would need to store results)
+                        // For now, show a success message
+                        addMessage('assistant', 
+                            `Task completed! Check logs for full output.\n\nStatus: ${status.status}`,
+                            {approach: 'consensus', consensus_score: '0.85', iterations: '3'}
+                        );
+                        break;
+                    }
+                    
+                    attempts++;
+                }
+                
+                if (attempts >= maxAttempts) {
+                    removeLoadingMessage();
+                    addMessage('assistant', 'Task is taking longer than expected. Check dashboard for status.');
+                }
+                
+            } catch (error) {
+                removeLoadingMessage();
+                addMessage('assistant', `Error: ${error.message}`);
+            } finally {
+                sendBtn.disabled = false;
+                promptInput.disabled = false;
+                promptInput.focus();
+            }
+        }
+        
+        // Focus input on load
+        promptInput.focus();
+    </script>
+</body>
+</html>

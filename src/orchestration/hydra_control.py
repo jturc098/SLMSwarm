@@ -40,6 +40,7 @@ class HydraControl:
         self.spec_hydration = SpecHydration()
         
         self.active_tasks: Dict[str, Task] = {}
+        self.task_results: Dict[str, Dict] = {}  # Store results
         self.execution_metrics: List[ExecutionMetrics] = []
         self.websocket_connections: List[WebSocket] = []
         
@@ -85,18 +86,24 @@ class HydraControl:
         
         @self.app.get("/tasks/{task_id}")
         async def get_task(task_id: str):
-            """Get task status."""
+            """Get task status and result."""
             if task_id not in self.active_tasks:
                 raise HTTPException(status_code=404, detail="Task not found")
             
             task = self.active_tasks[task_id]
-            return {
+            response = {
                 "task_id": task.id,
                 "status": task.status.value,
                 "title": task.title,
                 "created_at": task.created_at.isoformat(),
                 "assigned_agent": task.assigned_agent.value if task.assigned_agent else None
             }
+            
+            # Include result if available
+            if task_id in self.task_results:
+                response["result"] = self.task_results[task_id]
+            
+            return response
         
         @self.app.get("/tasks")
         async def list_tasks():
@@ -148,6 +155,14 @@ class HydraControl:
             dashboard_path = Path(__file__).parent.parent / "monitoring" / "dashboard.html"
             return FileResponse(dashboard_path)
         
+        @self.app.get("/chat")
+        @self.app.get("/")
+        async def chat():
+            """Serve chat interface."""
+            from fastapi.responses import FileResponse
+            chat_path = Path(__file__).parent.parent / "monitoring" / "chat.html"
+            return FileResponse(chat_path)
+        
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
             """WebSocket endpoint for real-time updates."""
@@ -198,6 +213,9 @@ class HydraControl:
             
             # Execute task through dispatcher
             result = await self.dispatcher.execute_task(task, episode_id)
+            
+            # Store result for retrieval
+            self.task_results[task.id] = result
             
             # Update task status
             task.status = TaskStatus.COMPLETED if result["success"] else TaskStatus.FAILED
