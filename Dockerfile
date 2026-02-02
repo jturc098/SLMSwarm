@@ -16,6 +16,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code (including all subdirectories)
 COPY src/ ./src/
 
+# Verify all modules copied
+RUN ls -la /app/src/ && \
+    ls -la /app/src/memory/ && \
+    ls -la /app/src/monitoring/
+
 # Create necessary directories
 RUN mkdir -p /app/specs /app/memory /app/logs /app/.hydra
 
