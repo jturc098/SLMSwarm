@@ -491,27 +491,38 @@
         }
         
         async function fetchMetrics() {
-            try:
+            try {
                 const response = await fetch(`${window.location.origin}/metrics`);
                 const data = await response.json();
                 
-                if (data.average_duration) {
+                console.log('Metrics data:', data);
+                
+                if (data.average_duration !== undefined) {
                     document.getElementById('avg-duration').textContent = 
                         data.average_duration.toFixed(2) + ' sec';
                 }
                 
-                if (data.success_rate) {
+                if (data.success_rate !== undefined) {
                     document.getElementById('success-rate').textContent = 
                         (data.success_rate * 100).toFixed(1) + '%';
                 }
                 
-                if (data.total_tokens) {
+                if (data.total_tokens !== undefined) {
                     document.getElementById('total-tokens').textContent = 
                         data.total_tokens.toLocaleString();
                 }
                 
+                if (data.total_executed !== undefined) {
+                    document.getElementById('total-tasks').textContent = data.total_executed;
+                }
+                
+                if (data.total_consensus_rounds !== undefined) {
+                    document.getElementById('consensus-rounds').textContent = data.total_consensus_rounds;
+                }
+                
             } catch (error) {
                 console.error('Failed to fetch metrics:', error);
+                addLogEntry('Failed to fetch metrics: ' + error.message, 'error');
             }
         }
         

@@ -125,14 +125,27 @@ class HydraControl:
         async def get_metrics():
             """Get execution metrics."""
             if not self.execution_metrics:
-                return {"message": "No metrics available yet"}
+                return {
+                    "recent_executions": 0,
+                    "total_executed": 0,
+                    "average_duration": 0,
+                    "success_rate": 0,
+                    "total_tokens": 0,
+                    "total_consensus_rounds": 0,
+                    "message": "No metrics available yet"
+                }
             
             recent = self.execution_metrics[-10:]
+            all_metrics = self.execution_metrics
+            
             return {
                 "recent_executions": len(recent),
+                "total_executed": len(all_metrics),
                 "average_duration": sum(m.duration_seconds for m in recent) / len(recent),
                 "success_rate": sum(1 for m in recent if m.success) / len(recent),
-                "total_tokens": sum(m.tokens_generated for m in recent)
+                "total_tokens": sum(m.tokens_generated for m in all_metrics),
+                "total_consensus_rounds": sum(m.consensus_rounds for m in all_metrics),
+                "avg_iterations": sum(m.iterations for m in recent) / len(recent) if recent else 0
             }
         
         @self.app.post("/initialize")
