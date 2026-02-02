@@ -1,0 +1,253 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # MODEL INFERENCE SERVERS (llama.cpp)
+  # ============================================================================
+  
+  architect-model:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: hydra-architect
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./models:/models
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: >
+      -m /models/DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf
+      --ctx-size 32768
+      --n-gpu-layers 99
+      --parallel 2
+      --batch-size 512
+      --port 8080
+      --alias architect
+      --flash-attn
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker-backend:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: hydra-worker-backend
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./models:/models
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: >
+      -m /models/Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf
+      --ctx-size 16384
+      --n-gpu-layers 99
+      --parallel 2
+      --batch-size 512
+      --port 8080
+      --alias worker_backend
+      --flash-attn
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+    restart: unless-stopped
+
+  worker-frontend:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: hydra-worker-frontend
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./models:/models
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: >
+      -m /models/Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf
+      --ctx-size 8192
+      --n-gpu-layers 99
+      --parallel 1
+      --batch-size 256
+      --port 8080
+      --alias worker_frontend
+      --flash-attn
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+    restart: unless-stopped
+
+  qa-sentinel:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: hydra-qa
+    ports:
+      - "8084:8080"
+    volumes:
+      - ./models:/models
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: >
+      -m /models/DeepSeek-R1-Distill-Qwen-1.5B-Q6_K.gguf
+      --ctx-size 8192
+      --n-gpu-layers 99
+      --parallel 1
+      --batch-size 256
+      --port 8080
+      --alias qa_sentinel
+      --flash-attn
+    restart: unless-stopped
+
+  consensus-judge:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: hydra-judge
+    ports:
+      - "8085:8080"
+    volumes:
+      - ./models:/models
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: >
+      -m /models/Phi-4-Mini-Q4_K_M.gguf
+      --ctx-size 8192
+      --n-gpu-layers 99
+      --parallel 1
+      --batch-size 256
+      --port 8080
+      --alias judge
+      --flash-attn
+    restart: unless-stopped
+
+  # ============================================================================
+  # SUPPORTING SERVICES
+  # ============================================================================
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: hydra-chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./memory/chromadb:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=FALSE
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: hydra-searxng
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8888
+      - SEARXNG_SECRET_KEY=${SEARXNG_SECRET_KEY:-changeme}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: hydra-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./memory/redis:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================================================
+  # ORCHESTRATION LAYER
+  # ============================================================================
+
+  hydra-control:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hydra-control
+    ports:
+      - "8090:8090"  # FastAPI
+      - "8091:8091"  # WebSocket
+    volumes:
+      - ./src:/app/src
+      - ./agent-zero:/app/agent-zero
+      - ./specs:/app/specs
+      - ./memory:/app/memory
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker access for sandboxing
+    environment:
+      - ARCHITECT_URL=http://architect-model:8080
+      - WORKER_BACKEND_URL=http://worker-backend:8080
+      - WORKER_FRONTEND_URL=http://worker-frontend:8080
+      - QA_URL=http://qa-sentinel:8080
+      - JUDGE_URL=http://consensus-judge:8080
+      - CHROMADB_URL=http://chromadb:8000
+      - SEARXNG_URL=http://searxng:8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - architect-model
+      - worker-backend
+      - worker-frontend
+      - qa-sentinel
+      - consensus-judge
+      - chromadb
+      - searxng
+      - redis
+    restart: unless-stopped
+
+networks:
+  default:
+    name: hydra-network
+
+volumes:
+  models:
+  memory:
+  searxng:
