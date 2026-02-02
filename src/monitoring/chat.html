@@ -293,7 +293,7 @@
                 };
                 
                 // Submit task
-                const response = await fetch('http://localhost:8090/tasks', {
+                const response = await fetch(`${window.location.origin}/tasks`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(taskData)
@@ -310,7 +310,7 @@
                 while (attempts < maxAttempts) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     
-                    const statusResponse = await fetch(`http://localhost:8090/tasks/${taskId}`);
+                    const statusResponse = await fetch(`${window.location.origin}/tasks/${taskId}`);
                     const status = await statusResponse.json();
                     
                     if (status.status === 'completed') {
