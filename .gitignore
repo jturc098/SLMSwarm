@@ -43,8 +43,8 @@ logs/
 models/*.gguf
 models/*.bin
 
-# Memory/Data
-memory/
+# Memory/Data (NOT src/memory which is source code!)
+/memory/
 .hydra/
 
 # Specs (user-generated)
