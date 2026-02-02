@@ -392,8 +392,24 @@
             
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                handleUpdate(data);
+                
+                // Handle different message types
+                if (data.type === 'connected') {
+                    addLogEntry('Connected to Hydra-Consensus', 'info');
+                } else if (data.type === 'heartbeat') {
+                    // Ignore heartbeats (keep-alive)
+                    return;
+                } else {
+                    handleUpdate(data);
+                }
             };
+            
+            // Send keepalive pings every 25 seconds
+            setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send('ping');
+                }
+            }, 25000);
         }
         
         function handleUpdate(update) {
