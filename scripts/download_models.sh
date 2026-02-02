@@ -53,8 +53,7 @@ download_model() {
     echo -e "${YELLOW}  File: $filename${NC}"
     
     hf download "$repo" "$filename" \
-        --local-dir "$MODEL_DIR" \
-        --local-dir-use-symlinks False
+        --local-dir "$MODEL_DIR"
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Successfully downloaded $filename${NC}"
