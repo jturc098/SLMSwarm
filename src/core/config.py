@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     
     # Supporting Services
     chromadb_url: str = Field(default="http://localhost:8000", description="ChromaDB vector store")
-    searxng_url: str = Field(default="http://localhost:8888", description="Searxng search engine")
+    searxng_url: str = Field(default="http://localhost:8889", description="Searxng search engine")
     redis_url: str = Field(default="redis://localhost:6379", description="Redis cache")
     
     # Model Configuration
