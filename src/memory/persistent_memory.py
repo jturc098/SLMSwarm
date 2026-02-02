@@ -32,11 +32,10 @@ class PersistentMemory:
     def _initialize_client(self) -> None:
         """Initialize ChromaDB client."""
         try:
-            self.client = chromadb.Client(Settings(
-                chroma_db_impl="duckdb+parquet",
-                persist_directory=str(settings.chromadb_persist_dir),
-                anonymized_telemetry=False
-            ))
+            # Use new ChromaDB API
+            self.client = chromadb.PersistentClient(
+                path=str(settings.chromadb_persist_dir)
+            )
             
             # Create collections for different memory types
             self.collections = {
